@@ -1,0 +1,427 @@
+---
+title: "Practica Final"
+author: "Giuliana Scoppettone"
+date: "2023-01-28"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+## Practica Final 
+
+Dataset de semillas (disponible en la URL): 
+
+[https://archive.ics.uci.edu/ml/datasets/seeds](https://archive.ics.uci.edu/ml/datasets/seeds)
+
+### Librerías:
+
+Se cargan las librerías necesarias:
+
+```{r}
+library(tidyverse)
+```
+
+
+
+Se carga el dataset:
+
+```{r}
+df_seeds <- read.table('https://archive.ics.uci.edu/ml/machine-learning-databases/00236/seeds_dataset.txt', col.names = c('area','perimetro','compacto',
+                    'longitud','anchura','coeficient.asimetria',
+                    'longitud.ranura','tipo'))
+```
+
+
+#### PREGUNTA 1
+
+¿Cuántas filas y cuántas columnas tiene el dataframe df_seeds?
+
+**Respuesta**:
+
+```{r}
+
+dim(df_seeds)
+str(df_seeds)
+
+```
+
+
+El dataset contiene 210 filas y 8 columnas; 8 varibles y 210 observaciones. 
+
+
+#### PREGUNTA 2
+
+Vamos a convertir en factor la columna tipo. Vamos a reemplazar los números por su correspondiente etiqueta (label). La correspondencia entre el código y el tipo es:
+
+```{r}
+names(df_seeds)
+```
+
+-   1 - Kama
+-   2 - Rosa
+-   3 - Canadian
+
+Convierte en factor la columna tipo, respetando las etiquetas:
+
+**Respuesta**:
+
+```{r}
+df_seeds$tipo <- as.factor(df_seeds$tipo)
+```
+
+```{r}
+df_seeds <- df_seeds %>% 
+  mutate (tipo = case_when(
+  tipo == "1" ~ "Kama",
+  tipo == "2" ~ "Rosa",
+  tipo == "3" ~ "Canadian")) 
+
+head(df_seeds, 5)
+```
+
+
+#### PREGUNTA 3
+
+¿Cual es la media del área de cada uno de los tipos?
+
+**Respuesta**
+
+La media del área de cada uno de los tipos en la siguiente tabla:
+
+```{r}
+media_Tipos <- df_seeds %>% 
+    group_by(tipo) %>%
+    dplyr::summarize(Mean = mean(area, na.rm=TRUE))
+
+media_Tipos
+```
+
+
+#### PREGUNTA 4
+
+¿Cómo se llama el siguiente tipo de gráfico?. 
+¿Qué representa la línea del centro de la caja?
+
+
+```{r}
+ggplot(df_seeds, aes(x=tipo, y=area)) + 
+  geom_boxplot()
+```
+
+**Respuesta**: 'Es un gráfico de cajas. La línea central de cada caja representa el cuartil Q2 o mediana (el 50% de los datos)'
+
+#### PREGUNTA 5
+
+¿Cómo pintarías un diagrama de puntos (o scatterplot) con ggplot con las siguientes características? - En el eje X la variable compacto - En el eje Y la variable area - Cada tipo de semilla debería tener un color diferente
+
+
+
+**Respuesta**:
+
+
+```{r}
+ggplot(df_seeds, aes(x=compacto, y=area, 
+      color=tipo)) +
+  ggtitle("Diagrama de puntos") +
+  geom_point()
+```
+
+#### PREGUNTA 6
+
+¿Qué hace la siguiente línea?:
+
+```{r}
+df_seeds |> mutate(is_kama = tipo=='Kama') -> df_seeds
+head(df_seeds,5)
+```
+
+**Respuesta**: 'La línea crea la variable is_kama y en ella le asigna verdadero al tipo de semilla Kama, y falso a los demás tipos de semilla.'
+
+#### PREGUNTA 7
+
+Vamos a dividir el conjunto de datos en test y training porque vamos a entrenar un modelo que me permita diferenciar si una semilla es de tipo Kama o no. ¿Por qué es aconsejable dividir el dataset en los grupos de train y test?
+
+
+```{r}
+
+set.seed(123) # Este set.seed hace que a todos nos generen los mismos número aleatorios
+
+idx <- sample(1:nrow(df_seeds), 0.7 * nrow(df_seeds))
+
+df_seeds_train <- df_seeds[idx, ]
+
+df_seeds_test <- df_seeds[-idx, ]
+
+```
+
+**Respuesta**: 
+
+'Estos modelos son aconsejables porque permiten comparar los datos de entrenamiento y prueba para comprobar que el modelo final funciona correctamente o para identificar si apunta hacia alguna dirección en específico.
+
+Los conjuntos de entrenamiento se usan comúnmente para estimar diferentes parámetros o para comparar el rendimiento de diferentes modelos. 
+
+El conjunto de datos de prueba se usa después de que se realiza el entrenamiento.'
+
+
+#### PREGUNTA 8
+
+Vamos a crear un modelo para realizar una clasificación binaria, donde le pasaremos como entrada las columnas: área, perimetro, compacto, longitud, coeficient.asimetria y longitud.ranura
+
+¿Qué tipo de algoritmo o modelo debería usar?
+
+**Respuesta**: 'Modelo de regresion logística: 
+
+la regresión logística es un tipo de análisis de regresión utilizado para predecir el resultado de una variable categórica (en este caso is_kama; TRUE y FALSE) en función de las variables independientes o predictoras.'
+
+#### PREGUNTA 9
+
+Crea un modelo que me permita clasificar si una semilla es de tipo Kama o no con las siguientes columnas: área, perimetro, compacto, longitud, coeficient.asimetria, longitud.ranura
+
+**Respuesta**:
+
+Se cargan las librerías:
+
+```{r}
+library(caTools)
+library(ROCR) 
+```
+
+Análisis de observaciones:
+
+Antes de contruir cualquier modelo se intenta explorar un poco la información disponible. 
+
+En este caso se tiene 140 observaciones con FALSE (No Kama) y 70 con TRUE (Kama).
+
+```{r}
+table(df_seeds$is_kama)
+```
+
+En la siguiente tabla se pueden observar los estadísticos básicos: 
+
+```{r}
+summary(df_seeds)
+```
+
+Ahora se observa graficamente las observaciones FALSE (tipo no Kama) y TRUE (tipo Kama).
+
+
+```{r}
+ggplot(df_seeds, aes(is_kama)) + 
+  geom_bar(fill="#2E9FDF") +
+  ggtitle("Tipo de semilla Kama")
+
+```
+
+##### Modelo de entrenamiento:
+
+
+```{r}
+summary(df_seeds_train)
+```
+
+
+```{r}
+summary(df_seeds_test)
+```
+
+Modelo glm:
+
+```{r}
+logistic_model <- glm(is_kama ~ area + perimetro +
+                        compacto + longitud + coeficient.asimetria +
+                        longitud.ranura, 
+                      data = df_seeds_train, 
+                      family = "binomial")
+summary(logistic_model)
+```
+
+```{r}
+logistic_model$coefficients
+```
+
+Se establece como notación: 1 -> TRUE y 0 -> FALSE
+
+```{r}
+DF <- ifelse(df_seeds$is_kama == "TRUE", 1, 0)
+```
+
+Gráfica con curva logística para la variable "coeficient.asimetria".
+
+```{r}
+ggplot(df_seeds, aes(x=coeficient.asimetria , y=DF, na.rm = TRUE)) +
+  geom_point() +
+  geom_smooth(method = "glm", 
+    method.args = list(family = "binomial"), 
+    se = FALSE)
+```
+
+
+Predicciones:
+
+```{r}
+probabilities <- logistic_model %>% 
+  predict(df_seeds_test, type = "response")
+
+predicted.classes <- ifelse(probabilities > 0.5, "TRUE", "FALSE")
+```
+
+Precisión de predicción
+ 
+```{r} 
+observed.classes <- df_seeds_test$is_kama
+mean(predicted.classes == observed.classes, na.rm = TRUE)
+```
+
+
+Precisión de predicción
+
+```{r}
+
+observed.classes <- df_seeds_test$is_kama
+mean(predicted.classes == observed.classes, na.rm = TRUE)
+   
+```
+
+
+```{r}
+performance_data <- data.frame(observed = df_seeds_test$is_kama,
+           predicted = predicted.classes)
+```
+
+```{r}
+verdadero <- sum(performance_data$observed =="TRUE")
+falso <- sum(performance_data$observed =="FALSE")
+predicted_positive <- sum(performance_data$predicted=="TRUE")
+predicted_negative <- sum(performance_data$predicted=="FALSE")
+total <- nrow(performance_data)
+data.frame(verdadero, falso,predicted_positive,predicted_negative)
+```
+
+```{r}
+tp<-sum(performance_data$observed=="TRUE" & performance_data$predicted=="TRUE")
+tn<-sum(performance_data$observed=="FALSE" & performance_data$predicted=="FALSE")
+fp<-sum(performance_data$observed=="FALSE" & performance_data$predicted=="TRUE")
+fn<-sum(performance_data$observed=="TRUE" & performance_data$predicted=="FALSE")
+data.frame(tp,tn,fp,fn)
+```
+
+
+```{r}
+accuracy <- (tp+tn)/total
+error_rate <- (fp+fn)/total
+sensitivity <- tp/verdadero
+especificity <- tn/falso
+precision <- tp/predicted_positive
+npv <- tn / predicted_negative
+data.frame(accuracy,error_rate,sensitivity,especificity,precision,npv)
+``` 
+
+
+
+
+
+#### PREGUNTA 10
+
+Si usamos un umbral de 0 en la salida del modelo (lo que equivale a probabilidad de 0.5 cuando usamos el predict con type='response') ¿Cuáles son los valores de precisión y exhausitividad?
+
+**Respuesta**.
+
+```{r}
+probabilities <- logistic_model %>% 
+  predict(df_seeds_test, type = "response")
+
+predicted.classes <- ifelse(probabilities > 0.5, "TRUE", "FALSE")
+
+```
+
+
+
+Precisión de predicción
+
+```{r}
+
+observed.classes <- df_seeds_test$is_kama
+mean(predicted.classes == observed.classes, na.rm = TRUE)
+   
+```
+
+
+```{r}
+performance_data <- data.frame(observed = df_seeds_test$is_kama,
+           predicted = predicted.classes)
+```
+
+```{r}
+verdadero <- sum(performance_data$observed =="TRUE")
+falso <- sum(performance_data$observed =="FALSE")
+predicted_positive <- sum(performance_data$predicted=="TRUE")
+predicted_negative <- sum(performance_data$predicted=="FALSE")
+total <- nrow(performance_data)
+data.frame(verdadero, falso,predicted_positive,predicted_negative)
+```
+
+```{r}
+tp<-sum(performance_data$observed=="TRUE" & performance_data$predicted=="TRUE")
+tn<-sum(performance_data$observed=="FALSE" & performance_data$predicted=="FALSE")
+fp<-sum(performance_data$observed=="FALSE" & performance_data$predicted=="TRUE")
+fn<-sum(performance_data$observed=="TRUE" & performance_data$predicted=="FALSE")
+data.frame(tp,tn,fp,fn)
+```
+
+
+```{r}
+precision <- (tp+tn)/total
+error_rate <- (fp+fn)/total
+sensibilidad <- tp/verdadero
+especificidad <- tn/falso
+precision <- tp/predicted_positive
+npv <- tn / predicted_negative
+data.frame(accuracy,error_rate,sensitivity,especificity,precision,npv)
+``` 
+
+
+
+
+#### PREGUNTA 11
+
+¿Qué están haciendo las siguientes líneas?
+
+```{r}
+set.seed(123)
+
+cl <- df_seeds |> 
+  select(area,perimetro,compacto,longitud,
+                       anchura,coeficient.asimetria,longitud.ranura) |> 
+  kmeans(3)
+
+table(real=df_seeds$tipo, cluster=cl$cluster)
+
+```
+
+**Respuesta**: 'En este caso se genera un agrupamiento k-medias, entre tres categorías: Canadian, Kama, Rosa.'
+
+
+
+```{r}
+library(factoextra)
+
+cluster=cl$cluster
+
+df_seeds <- df_seeds[, -8]
+df_seeds <- df_seeds[, -8]
+
+fviz_cluster(cl, data = df_seeds,
+             palette = c("#2E9FDF", "#00AFBB", "#E7B800"), 
+             geom = "point",
+             ellipse.type = "convex", 
+             ggtheme = theme_bw()
+             )
+
+  
+```
+
+Gráficamente se pueden notar los centriodes y los agrupamientos para cada una de las categorías.
